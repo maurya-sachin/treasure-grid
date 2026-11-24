@@ -1,0 +1,667 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light">
+<meta name="theme-color" content="#7fd3ff">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="description" content="Treasure Grid: uncover diamonds, dodge spiders, cash out any time. Prototype with virtual currency only.">
+<title>Treasure Grid</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap">
+<style>
+  /* Design tokens: defined once, used everywhere below. One candy theme for every device. */
+  :root {
+    --page-bg: linear-gradient(180deg, #6fd0ff 0%, #b79cff 55%, #ffb3e6 100%) fixed #b79cff;
+    --surface: #ffffff;
+    --surface-2: #fff3c9;
+    --edge: #4a1aa0;
+    --edge-soft: #8f6bea;
+    --text: #2b1060;
+    --muted: #432382;
+    --gold: #ffd43b;
+    --gold-text: #8a4b00;
+    --gold-edge: #b3650a;
+    --gold-ink: #4a2300;
+    --good: #0b9a4a;
+    --good-ink: #053a1c;
+    --good-tile-a: #c4f77d;
+    --good-tile-b: #5fd34b;
+    --good-edge: #2f8f2a;
+    --danger: #d1204d;
+    --danger-tile-a: #ff9fb3;
+    --danger-tile-b: #ff4f74;
+    --danger-edge: #a8153a;
+    --tile-a: #ffc07a;
+    --tile-b: #ff8a2b;
+    --tile-edge: #b3560a;
+    --leave-a: #7cf0a0;
+    --leave-b: #2fc467;
+    --leave-edge: #148a43;
+    --leave-ink: #053a1c;
+    --shadow: rgba(60, 20, 120, 0.3);
+    --shine: inset 0 3px 0 rgba(255, 255, 255, 0.7), inset 0 -4px 0 rgba(0, 0, 0, 0.14);
+    --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+    --r-lg: 24px;
+    --r-md: 16px;
+    --r-tile: 14px;
+    --gutter: 14px;
+    --tap: 46px;
+    --font: "Fredoka", ui-rounded, "SF Pro Rounded", "Nunito", system-ui, -apple-system, sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    min-height: 100dvh;
+    font-family: var(--font);
+    font-weight: 500;
+    color: var(--text);
+    background: var(--page-bg);
+    padding: env(safe-area-inset-top) max(var(--gutter), env(safe-area-inset-right))
+      env(safe-area-inset-bottom) max(var(--gutter), env(safe-area-inset-left));
+    overscroll-behavior: none;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  button { font: inherit; color: inherit; touch-action: manipulation; }
+  [hidden] { display: none !important; }
+  :focus-visible { outline: 4px solid #fff; outline-offset: 2px; box-shadow: 0 0 0 7px var(--edge); }
+  .sr-only, body[data-view="game"] .logo {
+    position: absolute; width: 1px; height: 1px; overflow: hidden;
+    clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap;
+  }
+  body[data-view="game"] .hero-art { display: none; }
+  .ico { width: 1.15em; height: 1.15em; flex: none; display: inline-block; vertical-align: -0.2em; }
+
+  /* The app is a phone-width column on every screen size. */
+  .app {
+    max-width: 520px; margin: 0 auto; position: relative; z-index: 1;
+    min-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    display: flex; flex-direction: column; padding-bottom: 16px;
+  }
+  main { flex: 1; display: flex; flex-direction: column; }
+
+  /* Ambient sparkles drifting up behind the app */
+  .ambient { position: fixed; inset: 0; overflow: hidden; pointer-events: none; z-index: 0; }
+  .ambient span:nth-child(3n+1) { background: #fff; }
+  .ambient span:nth-child(3n+2) { background: #ffe45c; }
+  .ambient span {
+    position: absolute; bottom: -20px; left: var(--x); width: var(--s); height: var(--s);
+    border-radius: 50%; background: #ff7ac8; opacity: 0; will-change: transform, opacity;
+    animation: drift var(--d) linear var(--delay) infinite;
+  }
+
+  /* HUD: wallet pills on the left, settings on the right */
+  .top { display: flex; align-items: center; gap: 8px; padding: 12px 0 4px; }
+  .wallet { display: flex; gap: 8px; flex: 1 1 auto; min-width: 0; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 8px; min-height: 42px; padding: 0 14px 0 4px;
+    border-radius: 999px; background: var(--surface); border: 3px solid var(--edge);
+    font-weight: 700; font-size: 1.05rem; font-variant-numeric: tabular-nums;
+    box-shadow: 0 3px 0 var(--edge-soft), 0 6px 10px var(--shadow);
+  }
+  .chip-ico {
+    display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #fff, var(--surface-2)); box-shadow: inset 0 0 0 2px #ffe08a;
+  }
+  .chip.bump { animation: bump 0.5s var(--spring); }
+  .icon-btn {
+    display: grid; place-items: center; width: 42px; height: 42px; padding: 0; border-radius: 50%;
+    background: var(--surface); border: 3px solid var(--edge); cursor: pointer; font-size: 1.15rem;
+    box-shadow: 0 3px 0 var(--edge-soft), 0 6px 10px var(--shadow); transition: transform 0.15s var(--spring);
+  }
+  .icon-btn.help { font-weight: 700; font-size: 1.3rem; color: var(--text); }
+  .rules { margin: 0; padding-left: 1.2em; display: grid; gap: 8px; text-align: left; }
+  .icon-btn:active { transform: translateY(2px) scale(0.94); }
+  .prefs { display: grid; gap: 6px; margin-top: 8px; }
+  .pref { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 4px; font-weight: 700; font-size: 1.1rem; }
+  .pref input[role="switch"] {
+    appearance: none; -webkit-appearance: none; flex: none; position: relative; width: 56px; height: 32px; margin: 0; border-radius: 16px;
+    background: #d9cdf7; border: 3px solid var(--edge-soft); cursor: pointer; transition: background 0.2s;
+  }
+  .pref input[role="switch"]::after {
+    content: ""; position: absolute; top: 2px; left: 2px; width: 22px; height: 22px; border-radius: 50%;
+    background: #fff; box-shadow: 0 2px 0 var(--edge-soft); transition: transform 0.25s var(--spring);
+  }
+  .pref input[role="switch"]:checked { background: var(--good-tile-b); border-color: var(--good-edge); }
+  .pref input[role="switch"]:checked::after { transform: translateX(24px); }
+  .pref input[role="switch"]:disabled { opacity: 0.5; cursor: not-allowed; }
+  .pref input[role="switch"]:focus-visible { outline: 3px solid var(--edge); outline-offset: 3px; }
+
+  /* Title card */
+  .hero { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 4px 0; }
+  .logo {
+    margin: 0; display: grid; line-height: 0.92; font-weight: 700; color: var(--gold);
+    -webkit-text-stroke: 9px var(--edge); paint-order: stroke fill; letter-spacing: 0.01em;
+    text-shadow: 0 4px 0 var(--gold-edge), 0 8px 0 var(--edge), 0 14px 18px var(--shadow);
+    transform: rotate(-3deg); transform-origin: left center;
+  }
+  .logo span:first-child { font-size: clamp(2.3rem, 11vw, 3.1rem); }
+  .logo span:last-child { font-size: clamp(3rem, 15vw, 4.2rem); color: #fff; margin-left: 0.4em; }
+  .hero-art { position: relative; width: 132px; height: 150px; flex: none; }
+  .hero-art .gem { position: absolute; left: 18px; top: 34px; width: 96px; height: 96px; animation: float 3.2s ease-in-out infinite; filter: drop-shadow(0 8px 6px rgba(60, 20, 120, 0.35)); }
+  .hero-art .glint { position: absolute; width: 22px; height: 22px; animation: twinkle 2.4s ease-in-out infinite; }
+  .glint.g1 { left: 6px; top: 40px; }
+  .glint.g2 { right: 4px; top: 70px; animation-delay: 0.8s; width: 16px; height: 16px; }
+  .glint.g3 { left: 52px; top: 8px; animation-delay: 1.5s; width: 14px; height: 14px; }
+  .hang { position: absolute; top: -6px; right: 20px; width: 40px; transform-origin: 50% 0; animation: swing 3.4s ease-in-out infinite alternate; }
+  .hang::before { content: ""; display: block; width: 3px; height: 34px; margin: 0 auto; background: var(--edge); border-radius: 2px; }
+  .hang .ico { width: 40px; height: 40px; display: block; }
+
+  /* Buttons: glossy jelly with a pressable bottom edge */
+  .btn {
+    position: relative; overflow: hidden; min-height: 54px; padding: 0 22px; border-radius: var(--r-md); cursor: pointer;
+    font-weight: 700; font-size: 1.15rem; border: 3px solid var(--gold-edge);
+    background: linear-gradient(180deg, #ffec7a 0%, #ffcf2a 52%, #ffb20f 100%);
+    color: var(--gold-ink); text-shadow: 0 1px 0 rgba(255, 255, 255, 0.65);
+    box-shadow: var(--shine), 0 5px 0 var(--gold-edge), 0 10px 18px var(--shadow);
+    transition: transform 0.18s var(--spring), box-shadow 0.1s;
+  }
+  .btn:active:not(:disabled) { transform: translateY(4px) scale(0.97); box-shadow: var(--shine), 0 1px 0 var(--gold-edge); }
+  .btn:disabled, .btn[aria-disabled="true"] { opacity: 0.55; cursor: not-allowed; }
+  .btn.ghost {
+    background: linear-gradient(180deg, #ffffff, #e9defd); color: var(--text); text-shadow: none; border-color: var(--edge);
+    box-shadow: var(--shine), 0 5px 0 var(--edge-soft), 0 10px 18px var(--shadow);
+  }
+  .btn.ghost:active:not(:disabled) { box-shadow: var(--shine), 0 1px 0 var(--edge-soft); }
+  .btn.leave {
+    background: linear-gradient(180deg, var(--leave-a), var(--leave-b)); color: var(--leave-ink);
+    border-color: var(--leave-edge); box-shadow: var(--shine), 0 5px 0 var(--leave-edge), 0 10px 18px var(--shadow);
+  }
+  .btn.pulse { min-height: 66px; font-size: 1.5rem; letter-spacing: 0.02em; }
+  .btn.pulse:not(:disabled) { animation: breathe 2s ease-in-out infinite; }
+  .btn.pulse::after {
+    content: ""; position: absolute; top: -20%; bottom: -20%; left: 0; width: 28%;
+    background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.75), transparent);
+    transform: translateX(-160%) skewX(-20deg); animation: shine 3.4s ease-in-out infinite; pointer-events: none;
+  }
+  @media (hover: hover) {
+    .btn:hover:not(:disabled) { filter: brightness(1.06); }
+    .icon-btn:hover { filter: brightness(1.05); }
+  }
+
+  /* Panels carry a ribbon title that overlaps the top edge */
+  .panel {
+    position: relative; margin-top: 18px; padding: 30px 16px 16px; background: var(--surface);
+    border: 4px solid var(--edge); border-radius: var(--r-lg);
+    box-shadow: inset 0 0 0 3px #efe6ff, 0 6px 0 var(--edge-soft), 0 14px 24px var(--shadow);
+  }
+  .panel h2 {
+    position: absolute; top: -20px; left: 50%; transform: translateX(-50%); margin: 0; padding: 4px 22px;
+    border-radius: 999px; border: 3px solid #2d0b6b; white-space: nowrap; font-size: 1.1rem; font-weight: 700; color: #fff;
+    background: linear-gradient(180deg, #9a64ff, #6a2fd8); text-shadow: 0 2px 0 rgba(0, 0, 0, 0.3);
+    box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.4), 0 3px 0 #2d0b6b;
+  }
+  .muted { color: var(--muted); }
+
+  /* Home */
+  .home { flex: 1; display: flex; flex-direction: column; animation: rise 0.4s both; }
+  .note { margin: 0; font-size: 0.95rem; text-align: center; }
+  .levels { --node: 36px; list-style: none; margin: 14px 0 0; padding: 0 6px; display: flex; justify-content: space-between; }
+  .level {
+    position: relative; flex: 1 1 0; min-width: 0; display: grid; justify-items: center; gap: 4px;
+    animation: rise 0.4s both; animation-delay: calc(var(--i) * 50ms);
+  }
+  .level::before {
+    content: ""; position: absolute; top: calc(var(--node) / 2 - 4px); left: calc(-50% + var(--node) / 2); width: calc(100% - var(--node)); height: 8px; border-radius: 4px;
+    background: #d9cdf7; z-index: 0;
+  }
+  .level:first-child::before { display: none; }
+  .level.done::before, .level.current::before { background: var(--good-tile-b); box-shadow: inset 0 -2px 0 var(--good-edge); }
+  .level .node {
+    position: relative; z-index: 1; width: var(--node); height: var(--node); border-radius: 50%; display: grid; place-items: center;
+    font-size: 1.15rem; background: linear-gradient(180deg, #fff, #e4d8fb); border: 3px solid var(--edge-soft);
+    box-shadow: inset 0 3px 0 rgba(255, 255, 255, 0.9), 0 4px 0 var(--edge-soft);
+  }
+  .level.done .node { background: linear-gradient(180deg, var(--good-tile-a), var(--good-tile-b)); border-color: var(--good-edge); box-shadow: var(--shine), 0 4px 0 var(--good-edge); }
+  .level.current .node {
+    background: linear-gradient(180deg, #ffec7a, #ffb20f); border-color: var(--gold-edge);
+    box-shadow: var(--shine), 0 4px 0 var(--gold-edge);
+  }
+  .level.picked .node { box-shadow: var(--shine), 0 4px 0 var(--good-edge), 0 0 0 2px #fff, 0 0 0 4px var(--edge); }
+  .level.current.picked .node { box-shadow: var(--shine), 0 4px 0 var(--gold-edge), 0 0 0 2px #fff, 0 0 0 4px var(--edge); }
+  .level button.node { padding: 0; font: inherit; color: inherit; cursor: pointer; }
+  .level button.node:focus-visible { outline: 3px solid var(--edge); outline-offset: 3px; }
+  .level .name { font-weight: 700; font-size: 0.85rem; margin-top: 4px; }
+  .level.locked .name { opacity: 0.8; }
+  .level.unlock-anim { animation: unlock 0.8s both; }
+  .level-detail { margin: 14px 0 0; font-weight: 600; text-align: center; font-size: 1.05rem; }
+  .stakes { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: 4px; }
+  .stake {
+    display: inline-flex; align-items: center; justify-content: center; gap: 4px; min-width: 0; min-height: var(--tap);
+    padding: 0 4px; border-radius: var(--r-md); cursor: pointer; font-weight: 700; font-size: 1rem;
+    background: linear-gradient(180deg, #fff, #efe6ff); border: 3px solid var(--edge-soft);
+    box-shadow: inset 0 3px 0 #fff, 0 4px 0 var(--edge-soft); transition: transform 0.15s var(--spring);
+  }
+  .stake:active:not(:disabled) { transform: translateY(3px); box-shadow: inset 0 3px 0 #fff, 0 1px 0 var(--edge-soft); }
+  .stake[aria-pressed="true"] {
+    background: linear-gradient(180deg, #ffec7a, #ffb20f); color: var(--gold-ink); border-color: var(--gold-edge);
+    box-shadow: var(--shine), 0 4px 0 var(--gold-edge);
+  }
+  .stake:disabled { opacity: 0.5; cursor: not-allowed; }
+  .home-actions { position: sticky; bottom: max(12px, env(safe-area-inset-bottom)); margin-top: auto; padding-top: 18px; z-index: 2; }
+  .home-actions .btn { width: 100%; }
+
+  /* Game */
+  .game { display: grid; flex: 1; align-content: center; gap: clamp(12px, 2.4dvh, 24px); justify-items: center; padding-top: 6px; animation: rise 0.35s both; }
+  .stats { display: flex; gap: 6px; justify-content: center; width: 100%; }
+  .stat {
+    flex: 1 1 0; min-width: 0; padding: 6px 6px 8px; border-radius: var(--r-md); text-align: center;
+    background: var(--surface); border: 3px solid var(--edge); box-shadow: 0 3px 0 var(--edge-soft);
+  }
+  .stat .label { display: block; font-size: 0.7rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
+  .stat .value { font-size: 1.25rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .stat.bag { background: linear-gradient(180deg, #fff9d6, #ffe58a); border-color: var(--gold-edge); box-shadow: 0 3px 0 var(--gold-edge); }
+  .stat.bag .value { color: var(--gold-text); }
+  .stat.bag.bump { animation: bump 0.5s var(--spring); }
+  .tip { margin: 0; text-align: center; font-size: 0.95rem; min-height: 1.4em; }
+  .risk-wrap { width: min(100%, 360px); display: grid; gap: 4px; }
+  .risk { margin: 0; text-align: center; font-size: 0.9rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .risk-bar { height: 14px; border-radius: 999px; overflow: hidden; background: #fff; border: 3px solid var(--edge); box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.2); }
+  .risk-bar span {
+    display: block; height: 100%; width: 100%; transform-origin: left; transform: scaleX(0);
+    transition: transform 0.35s var(--spring); background: linear-gradient(180deg, var(--good-tile-a), var(--good-tile-b));
+  }
+  .risk-bar span[data-level="mid"] { background: linear-gradient(180deg, #ffe66d, #ffa92a); }
+  .risk-bar span[data-level="high"] { background: linear-gradient(180deg, var(--danger-tile-a), var(--danger-tile-b)); }
+
+  .board-wrap {
+    --board: max(220px, min(calc(100vw - 2 * var(--gutter) - 54px), calc(100dvh - 380px), 450px));
+    display: grid; grid-template-columns: var(--board) var(--tap); gap: 8px; align-items: stretch; position: relative;
+  }
+  /* The tray the tiles sit in. */
+  .board {
+    position: relative; width: var(--board); aspect-ratio: 1; display: grid; padding: 8px;
+    grid-template-columns: repeat(5, minmax(0, 1fr)); grid-template-rows: repeat(5, minmax(0, 1fr)); gap: 6px; perspective: 700px;
+    background: linear-gradient(180deg, #8b52f0, #5a22c0); border: 4px solid #2d0b6b; border-radius: 26px;
+    box-shadow: inset 0 4px 0 rgba(255, 255, 255, 0.25), inset 0 -8px 14px rgba(0, 0, 0, 0.28), 0 8px 0 #2d0b6b, 0 16px 26px var(--shadow);
+  }
+  .board.shake { animation: shake 0.5s; }
+  .board.leaving { animation: slide-out 0.5s both; }
+  .radar {
+    position: absolute; top: 0; left: 0; width: var(--board); height: var(--board); border-radius: 50%;
+    pointer-events: none; opacity: 0;
+    background: conic-gradient(from 0deg, transparent 0 70%, rgba(95, 211, 75, 0.75) 100%);
+  }
+  .radar.go { animation: radar 0.9s ease-out; }
+  .scan-col { display: grid; grid-template-rows: repeat(5, minmax(0, 1fr)); gap: 6px; padding: 12px 0; }
+  .scan {
+    display: grid; place-items: center; min-width: var(--tap); padding: 0; border-radius: var(--r-tile); cursor: pointer;
+    font-weight: 700; font-size: 1.05rem; background: linear-gradient(180deg, #fff, #efe6ff);
+    border: 3px solid var(--edge-soft); box-shadow: inset 0 3px 0 #fff, 0 3px 0 var(--edge-soft);
+  }
+  .scan:active:not([aria-disabled="true"]) { transform: translateY(2px); }
+  .scan.done { background: linear-gradient(180deg, var(--good-tile-a), var(--good-tile-b)); border-color: var(--good-edge); box-shadow: 0 3px 0 var(--good-edge); }
+  .scan[aria-disabled="true"] { cursor: not-allowed; }
+
+  /* Each level gets its own jelly colour so progress shows on the board. */
+  .game[data-level="0"] { --tile-a: #ffc07a; --tile-b: #ff8a2b; --tile-edge: #b3560a; }
+  .game[data-level="1"] { --tile-a: #fff07a; --tile-b: #ffc61f; --tile-edge: #a67700; }
+  .game[data-level="2"] { --tile-a: #8fd2ff; --tile-b: #3d9bff; --tile-edge: #1a5db3; }
+  .game[data-level="3"] { --tile-a: #d3adff; --tile-b: #9157f0; --tile-edge: #5a2fb0; }
+  .game[data-level="4"] { --tile-a: #a9b4ff; --tile-b: #5b6cf2; --tile-edge: #2c36a8; }
+  .game[data-level="5"] { --tile-a: #f0c9a0; --tile-b: #c98b52; --tile-edge: #7a4a1c; }
+
+  .tile {
+    position: relative; width: 100%; height: 100%; min-width: 0; min-height: 0; padding: 0; cursor: pointer; border-radius: var(--r-tile);
+    border: 3px solid var(--tile-edge); background: linear-gradient(180deg, var(--tile-a), var(--tile-b));
+    box-shadow: var(--shine), 0 5px 0 var(--tile-edge), 0 9px 10px var(--shadow); font-size: clamp(1.4rem, 7vw, 2.2rem);
+    transition: transform 0.12s, box-shadow 0.12s;
+  }
+  .tile::after {
+    content: ""; position: absolute; inset: 6% 14% auto 14%; height: 30%; border-radius: 999px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.75), rgba(255, 255, 255, 0)); pointer-events: none;
+  }
+  .tile .face { display: grid; place-items: center; width: 100%; height: 100%; }
+  .tile .face .ico { width: 72%; height: 72%; }
+  /* A faint question mark hints that something is hidden underneath. */
+  .tile:not(.safe):not(.spider):not(.shown):not(.marked) .face::before {
+    content: "?"; font-weight: 700; color: rgba(255, 255, 255, 0.6); text-shadow: 0 2px 0 rgba(0, 0, 0, 0.18);
+  }
+  .tile:active:not(:disabled):not(.safe):not(.spider) { transform: translateY(3px) scale(0.93); box-shadow: var(--shine), 0 2px 0 var(--tile-edge); }
+  .tile.entering { animation: flip-in 0.5s var(--spring) both; animation-delay: calc(var(--i) * 28ms); }
+  .tile.safe {
+    background: linear-gradient(180deg, var(--good-tile-a), var(--good-tile-b)); border-color: var(--good-edge);
+    box-shadow: var(--shine), 0 5px 0 var(--good-edge), 0 0 20px rgba(120, 230, 70, 0.85); animation: jelly 0.6s;
+  }
+  .tile.safe .ico { animation: gem-pop 0.6s var(--spring); }
+  .tile.spider { background: linear-gradient(180deg, var(--danger-tile-a), var(--danger-tile-b)); border-color: var(--danger-edge); box-shadow: var(--shine), 0 5px 0 var(--danger-edge); animation: pop 0.38s; }
+  .tile.spider .ico, .tile.shown .ico { animation: wiggle 0.5s; }
+  .tile.shown { opacity: 0.8; animation: reveal 0.4s both; }
+  .tile.marked { box-shadow: var(--shine), 0 5px 0 var(--tile-edge), 0 0 0 4px #fff, 0 0 18px 4px #ffd43b; }
+  .tile.marked .ico { animation: twinkle 1.4s ease-in-out infinite; }
+  .tile[aria-disabled="true"] { cursor: default; }
+
+  .gain {
+    position: absolute; left: 50%; top: 8%; z-index: 2; pointer-events: none; font-size: 1.05rem; font-weight: 700;
+    color: #fff; -webkit-text-stroke: 4px #1f6a1c; paint-order: stroke fill; animation: gain-up 0.9s ease-out forwards;
+  }
+  .spark { position: fixed; z-index: 30; width: 9px; height: 9px; border-radius: 50%; background: var(--gold); pointer-events: none; }
+
+  .flash {
+    position: fixed; inset: 0; pointer-events: none; opacity: 0; z-index: 20;
+    background: radial-gradient(circle, transparent 30%, rgba(209, 32, 77, 0.7));
+  }
+  .flash.go { animation: flash 0.6s; }
+  .coin { position: fixed; z-index: 30; pointer-events: none; width: 1.8rem; height: 1.8rem; will-change: transform, opacity; }
+
+  .actions { display: flex; gap: 12px; width: 100%; max-width: 450px; }
+  .actions .btn { flex: 1 1 0; padding: 0 12px; }
+
+  @media (orientation: landscape) and (max-height: 500px) {
+    .game { grid-template-columns: auto 1fr; align-items: center; justify-items: stretch; }
+    .board-wrap { --board: max(200px, min(calc(100dvh - 40px), 450px)); grid-row: 1 / span 4; }
+    .stats, .tip, .actions { grid-column: 2; }
+    .hero-art { display: none; }
+  }
+
+  /* Dialogs */
+  dialog {
+    border: 4px solid var(--edge); border-radius: 28px; background: var(--surface); color: var(--text);
+    padding: 26px 22px 22px; width: min(92vw, 380px); text-align: center; overflow: hidden;
+    box-shadow: inset 0 0 0 3px #efe6ff, 0 8px 0 var(--edge-soft), 0 24px 60px var(--shadow);
+  }
+  dialog::backdrop { background: rgba(43, 16, 96, 0.6); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); }
+  dialog[open] { animation: pop 0.4s var(--spring); }
+  dialog[open] > * { animation: rise 0.4s both; }
+  dialog[open] > :nth-child(2) { animation-delay: 80ms; }
+  dialog[open] > :nth-child(3) { animation-delay: 160ms; }
+  dialog[open] > :nth-child(4) { animation-delay: 240ms; }
+  dialog h2 { margin: 0; font-size: 1.6rem; font-weight: 700; }
+  .big { position: relative; isolation: isolate; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 2.8rem; font-weight: 700; margin: 10px 0; font-variant-numeric: tabular-nums; }
+  .big .ico { width: 0.9em; height: 0.9em; animation: float 2.4s ease-in-out infinite; }
+  .big.win { color: var(--gold-text); }
+  .big.lose { color: var(--danger); }
+  .big.win::before {
+    content: ""; position: absolute; z-index: -1; inset: -70px -50px; border-radius: 50%;
+    background: repeating-conic-gradient(rgba(255, 212, 59, 0.5) 0 10deg, transparent 10deg 20deg);
+    -webkit-mask-image: radial-gradient(circle, #000 15%, transparent 68%); mask-image: radial-gradient(circle, #000 15%, transparent 68%);
+    animation: spin 14s linear infinite;
+  }
+  .dialog-actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 16px; }
+  .dialog-actions .btn { flex: 1 1 120px; }
+
+  .toasts {
+    position: fixed; left: 0; right: 0; bottom: max(16px, env(safe-area-inset-bottom)); z-index: 40;
+    display: grid; justify-items: center; gap: 8px; pointer-events: none; padding: 0 var(--gutter);
+  }
+  .toast {
+    pointer-events: auto; max-width: 420px; padding: 12px 18px; border-radius: var(--r-md); font-weight: 600;
+    background: var(--surface); border: 3px solid var(--edge); box-shadow: 0 4px 0 var(--edge-soft), 0 10px 24px var(--shadow);
+    animation: toast-in 0.35s var(--spring) both;
+  }
+  .toast.error { border-color: var(--danger); box-shadow: 0 4px 0 var(--danger-edge), 0 10px 24px var(--shadow); }
+  .toast.ok { border-color: var(--good-edge); box-shadow: 0 4px 0 var(--good-edge), 0 10px 24px var(--shadow); }
+  .toast.out { animation: toast-out 0.3s both; }
+
+  @keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+  @keyframes flip-in { from { opacity: 0; transform: rotateY(90deg) scale(0.8); } to { opacity: 1; transform: none; } }
+  @keyframes pop { 0% { transform: scale(0.6); } 60% { transform: scale(1.14); } 100% { transform: scale(1); } }
+  @keyframes jelly {
+    0% { transform: rotateY(90deg) scale(0.7); }
+    45% { transform: rotateY(-6deg) scale(1.22, 0.86); }
+    70% { transform: scale(0.92, 1.1); }
+    100% { transform: none; }
+  }
+  @keyframes gem-pop {
+    0% { transform: scale(0) rotate(-40deg); }
+    60% { transform: scale(1.3) rotate(10deg); }
+    100% { transform: none; }
+  }
+  @keyframes wiggle {
+    0%, 100% { transform: none; }
+    20% { transform: rotate(-14deg) scale(1.1); }
+    40% { transform: rotate(12deg) scale(1.1); }
+    60% { transform: rotate(-8deg); }
+    80% { transform: rotate(6deg); }
+  }
+  @keyframes float { 0%, 100% { transform: translateY(0) rotate(-3deg); } 50% { transform: translateY(-8px) rotate(3deg); } }
+  @keyframes twinkle { 0%, 100% { transform: scale(0.5) rotate(0); opacity: 0.4; } 50% { transform: scale(1.1) rotate(45deg); opacity: 1; } }
+  @keyframes swing { from { transform: rotate(-12deg); } to { transform: rotate(12deg); } }
+  @keyframes shine { 0%, 55% { transform: translateX(-160%) skewX(-20deg); } 100% { transform: translateX(520%) skewX(-20deg); } }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes gain-up {
+    0% { opacity: 0; transform: translate(-50%, 6px) scale(0.7); }
+    20% { opacity: 1; transform: translate(-50%, -6px) scale(1.15); }
+    100% { opacity: 0; transform: translate(-50%, -34px) scale(1); }
+  }
+  @keyframes drift {
+    0% { transform: translateY(0); opacity: 0; }
+    15% { opacity: 0.45; }
+    100% { transform: translateY(-110vh); opacity: 0; }
+  }
+  @keyframes reveal { from { opacity: 0; transform: scale(0.6); } to { opacity: 0.8; transform: none; } }
+  @keyframes bump { 0%, 100% { transform: scale(1); } 40% { transform: scale(1.14); } }
+  @keyframes breathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.035); } }
+  @keyframes shake {
+    0%, 100% { transform: none; }
+    15% { transform: translateX(-9px) rotate(-1deg); }
+    30% { transform: translateX(8px) rotate(1deg); }
+    45% { transform: translateX(-6px); }
+    60% { transform: translateX(5px); }
+    80% { transform: translateX(-2px); }
+  }
+  @keyframes flash { 0% { opacity: 0; } 20% { opacity: 0.9; } 100% { opacity: 0; } }
+  @keyframes radar { from { transform: rotate(0); opacity: 0.9; } to { transform: rotate(360deg); opacity: 0; } }
+  @keyframes slide-out { to { transform: translateY(40px) scale(0.94); opacity: 0; } }
+  @keyframes toast-in { from { opacity: 0; transform: translateY(20px) scale(0.9); } to { opacity: 1; transform: none; } }
+  @keyframes toast-out { to { opacity: 0; transform: translateY(10px); } }
+  @keyframes unlock {
+    0% { transform: scale(1); } 25% { transform: scale(1.12) rotate(-3deg); }
+    50% { transform: scale(1.12) rotate(3deg); } 100% { transform: scale(1); }
+  }
+
+  @media (max-width: 400px) {
+    .hero-art { width: 112px; }
+    .hero-art .gem { left: 8px; width: 84px; height: 84px; }
+    .chip { padding-right: 10px; font-size: 1rem; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important; animation-iteration-count: 1 !important;
+      animation-delay: 0ms !important; transition-duration: 0.01ms !important;
+    }
+    .board.shake, .radar.go, .coin { animation: none; }
+    .ambient, .spark, .gain { display: none; }
+  }
+</style>
+</head>
+<body data-view="home">
+<!-- Icon sprite: drawn once, referenced everywhere with <use>. -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <symbol id="i-gem" viewBox="0 0 64 64">
+    <g stroke="#1b4fa8" stroke-width="2.5" stroke-linejoin="round">
+      <path d="M18 8h28l-6 18H24z" fill="#e9fcff"/>
+      <path d="M18 8l6 18H2z" fill="#9be8ff"/>
+      <path d="M46 8l-6 18h22z" fill="#6fd0ff"/>
+      <path d="M2 26h22l8 32z" fill="#3fa9f5"/>
+      <path d="M24 26h16L32 58z" fill="#86e0ff"/>
+      <path d="M40 26h22L32 58z" fill="#2b86e0"/>
+    </g>
+    <path d="M22 13l3-1 -2 8z" fill="#fff" opacity="0.9"/>
+  </symbol>
+  <symbol id="i-spider" viewBox="0 0 64 64">
+    <g fill="none" stroke="#2a0e55" stroke-width="4" stroke-linecap="round">
+      <path d="M20 32Q8 28 6 16M18 38Q6 38 2 30M18 44Q6 48 4 58M22 49Q14 56 14 62"/>
+      <path d="M44 32Q56 28 58 16M46 38Q58 38 62 30M46 44Q58 48 60 58M42 49Q50 56 50 62"/>
+    </g>
+    <circle cx="32" cy="40" r="16" fill="#3b1c6e" stroke="#2a0e55" stroke-width="3"/>
+    <circle cx="25.5" cy="35" r="6" fill="#fff"/><circle cx="38.5" cy="35" r="6" fill="#fff"/>
+    <circle cx="27" cy="36.5" r="3" fill="#1a0b36"/><circle cx="37" cy="36.5" r="3" fill="#1a0b36"/>
+    <path d="M26 46q6 5 12 0" fill="none" stroke="#ff7a95" stroke-width="3" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="i-bolt" viewBox="0 0 64 64">
+    <path d="M37 3L11 37h15l-6 24 33-37H37z" fill="#ffd43b" stroke="#b3650a" stroke-width="3.5" stroke-linejoin="round"/>
+    <path d="M36 10L22 30" stroke="#fff" stroke-width="3" stroke-linecap="round" opacity="0.8"/>
+  </symbol>
+  <symbol id="i-lock" viewBox="0 0 64 64">
+    <path d="M20 30v-8a12 12 0 0 1 24 0v8" fill="none" stroke="#8a6a2a" stroke-width="6" stroke-linecap="round"/>
+    <rect x="12" y="28" width="40" height="30" rx="9" fill="#ffc93c" stroke="#a8680a" stroke-width="3.5"/>
+    <circle cx="32" cy="41" r="4.5" fill="#6b3d00"/><rect x="30" y="43" width="4" height="8" rx="2" fill="#6b3d00"/>
+  </symbol>
+  <symbol id="i-star" viewBox="0 0 64 64">
+    <path d="M32 4l8.5 18.5L61 25l-15 14 4 20.5L32 49 14 59.5 18 39 3 25l20.5-2.5z" fill="#fff8c4" stroke="#b3650a" stroke-width="4" stroke-linejoin="round"/>
+  </symbol>
+  <symbol id="i-check" viewBox="0 0 64 64">
+    <path d="M13 33l13 13 26-28" fill="none" stroke="#fff" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+  </symbol>
+  <symbol id="i-spark" viewBox="0 0 64 64">
+    <path d="M32 2l7 23 23 7-23 7-7 23-7-23-23-7 23-7z" fill="#fff" stroke="#ffb20f" stroke-width="4" stroke-linejoin="round"/>
+  </symbol>
+  <symbol id="i-gear" viewBox="0 0 64 64">
+    <path d="M32 7v8M32 49v8M7 32h8M49 32h8M14 14l6 6M44 44l6 6M50 14l-6 6M20 44l-6 6" fill="none" stroke="#4a1aa0" stroke-width="7" stroke-linecap="round"/>
+    <circle cx="32" cy="32" r="15" fill="#fff" stroke="#4a1aa0" stroke-width="4"/>
+    <circle cx="32" cy="32" r="5.5" fill="#ffb20f" stroke="#4a1aa0" stroke-width="3"/>
+  </symbol>
+</svg>
+
+<div class="ambient" id="ambient" aria-hidden="true"></div>
+<div class="app">
+  <header class="top">
+    <div class="wallet" aria-label="Wallet">
+      <span class="chip" id="diamonds-chip"><span class="chip-ico" aria-hidden="true"><svg class="ico"><use href="#i-gem"/></svg></span><span id="diamonds">0</span><span class="sr-only">Diamonds</span></span>
+      <span class="chip" id="credits-chip"><span class="chip-ico" aria-hidden="true"><svg class="ico"><use href="#i-bolt"/></svg></span><span id="credits">0</span><span class="sr-only">Credits</span></span>
+    </div>
+    <button class="icon-btn help" id="help-btn" type="button" aria-label="How to play">?</button>
+    <button class="icon-btn" id="settings-btn" type="button" aria-label="Settings"><svg class="ico" aria-hidden="true"><use href="#i-gear"/></svg></button>
+  </header>
+
+  <div class="hero">
+    <h1 class="logo"><span>Treasure</span><span>Grid</span></h1>
+    <div class="hero-art" aria-hidden="true">
+      <div class="hang"><svg class="ico"><use href="#i-spider"/></svg></div>
+      <svg class="ico gem"><use href="#i-gem"/></svg>
+      <svg class="ico glint g1"><use href="#i-spark"/></svg>
+      <svg class="ico glint g2"><use href="#i-spark"/></svg>
+      <svg class="ico glint g3"><use href="#i-spark"/></svg>
+    </div>
+  </div>
+
+  <main>
+    <section class="home" id="home" aria-labelledby="home-title">
+      <div class="panel">
+        <h2 id="home-title">Your adventure</h2>
+        <p class="muted note" id="level-note">Cash out 1.5× or more to climb to the next level.</p>
+        <ol class="levels" id="levels" aria-label="Level progress"></ol>
+        <p class="level-detail" id="level-detail" aria-hidden="true"></p>
+      </div>
+      <div class="panel">
+        <h2>Stake</h2>
+        <div class="stakes" id="stakes" role="group" aria-label="Stake in Diamonds"></div>
+      </div>
+      <div class="home-actions">
+        <button class="btn pulse" id="start-btn" type="button">Start digging</button>
+      </div>
+    </section>
+
+    <section class="game" id="game" aria-label="Game board" hidden>
+      <div class="stats">
+        <div class="stat"><span class="label">Stake</span><span class="value" id="stake-info">0</span></div>
+        <div class="stat bag" id="bag-stat"><span class="label">Bag</span><span class="value" id="bag">0</span></div>
+        <div class="stat"><span class="label">Next</span><span class="value" id="next">×1.00</span></div>
+        <div class="stat"><span class="label">Picks</span><span class="value" id="picks">0</span></div>
+      </div>
+      <p class="tip muted" id="tip"></p>
+      <div class="risk-wrap">
+        <p class="risk" id="risk"></p>
+        <div class="risk-bar" aria-hidden="true"><span id="risk-fill" data-level="low"></span></div>
+      </div>
+      <div class="board-wrap">
+        <div class="board" id="board" role="group" aria-label="Treasure grid, 5 by 5"></div>
+        <div class="radar" id="radar"></div>
+        <div class="scan-col" id="scan-col"></div>
+      </div>
+      <div class="actions">
+        <button class="btn leave" id="leave-btn" type="button">Leave with bag</button>
+        <button class="btn ghost" id="sonar-btn" type="button">Sonar · 40 <svg class="ico" aria-hidden="true"><use href="#i-bolt"/></svg></button>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div class="flash" id="flash" aria-hidden="true"></div>
+<div class="toasts" id="toasts" role="status" aria-live="polite"></div>
+<p class="sr-only" id="announce" role="status" aria-live="polite"></p>
+
+<dialog id="result-dialog" aria-labelledby="result-title">
+  <h2 id="result-title"></h2>
+  <div class="big" id="result-big"><span id="result-amount"></span><svg class="ico" aria-hidden="true"><use href="#i-gem"/></svg></div>
+  <p class="muted" id="result-sub"></p>
+  <div class="dialog-actions">
+    <button class="btn" id="again-btn" type="button">Play again</button>
+    <button class="btn ghost" id="home-btn" type="button">Home</button>
+  </div>
+</dialog>
+
+<dialog id="leave-dialog" aria-labelledby="leave-title">
+  <h2 id="leave-title">Leave and keep your bag?</h2>
+  <div class="big win"><span id="leave-amount"></span><svg class="ico" aria-hidden="true"><use href="#i-gem"/></svg></div>
+  <p class="muted">The round ends and the bag goes to your balance.</p>
+  <div class="dialog-actions">
+    <button class="btn leave" id="leave-confirm" type="button">Leave</button>
+    <button class="btn ghost" id="leave-cancel" type="button">Keep digging</button>
+  </div>
+</dialog>
+
+<dialog id="help-dialog" aria-labelledby="help-title">
+  <h2 id="help-title">How to play</h2>
+  <ul class="rules">
+    <li>Tap tiles to find Diamonds. A spider ends the round.</li>
+    <li>Every safe tile grows your bag. Leave any time to keep it.</li>
+    <li>Sonar (40 Credits) marks one safe tile. The button beside a row (15) counts its spiders.</li>
+    <li>Cash out at 1.5&times; or more to unlock the next level.</li>
+    <li>Diamonds and Credits are virtual and have no cash value.</li>
+    <li>Keys: arrows move, Enter picks, L leaves, S uses Sonar.</li>
+  </ul>
+  <div class="dialog-actions">
+    <button class="btn" id="help-close" type="button">Got it</button>
+  </div>
+</dialog>
+
+<dialog id="settings-dialog" aria-labelledby="settings-title">
+  <h2 id="settings-title">Settings</h2>
+  <div class="prefs">
+    <label class="pref"><span>Music</span><input type="checkbox" role="switch" id="pref-music" checked></label>
+    <label class="pref"><span>Sound effects</span><input type="checkbox" role="switch" id="pref-sound" checked></label>
+    <label class="pref"><span>Haptics</span><input type="checkbox" role="switch" id="pref-haptics" checked></label>
+    <p class="muted" id="haptics-note" hidden>Haptics are not supported on this device.</p>
+  </div>
+  <div class="dialog-actions">
+    <button class="btn ghost" id="reset-btn" type="button">Reset</button>
+    <button class="btn" id="settings-close" type="button">Done</button>
+  </div>
+</dialog>
+
+<dialog id="reset-dialog" aria-labelledby="reset-title">
+  <h2 id="reset-title">Reset progress?</h2>
+  <p class="muted">Diamonds, Credits and unlocked levels go back to the start.</p>
+  <div class="dialog-actions">
+    <button class="btn ghost" id="reset-cancel" type="button">Cancel</button>
+    <button class="btn" id="reset-confirm" type="button">Reset</button>
+  </div>
+</dialog>
+
+<dialog id="broke-dialog" aria-labelledby="broke-title">
+  <h2 id="broke-title">Out of Diamonds</h2>
+  <p class="muted" id="broke-text"></p>
+  <div class="dialog-actions">
+    <button class="btn" id="broke-action" type="button"></button>
+  </div>
+</dialog>
+
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"
+  integrity="sha384-sPwMflxqfAN+Q5mvlkLmHiX3PORGbZSXHiSGPTXT9VHCD/AB+b+r+vJWsqprv+7k"
+  crossorigin="anonymous" defer></script>
+<script type="module" src="ui.js"></script>
+</body>
+</html>
