@@ -10,7 +10,6 @@
 ## Progress (2026-11-24)
 - Done: game.js (21 tests), fx.js, index.html, ui.js (written, awaiting browser verification).
 - Confetti is jsDelivr canvas-confetti 1.9.3 with SRI (plan/spec still say cdnjs; cdnjs 404'd).
-- No commits yet. Deploy (GitHub Pages via `gh`) needs explicit OK for repo name, visibility and push.
 - Left: browser verify (375/768/1024/1440, light/dark, keyboard, 145% text, axe), review pass, deploy.
 
 ## Verification (2026-11-24)
@@ -68,5 +67,11 @@
 - `.game` fills the page and centres (`flex: 1; align-content: center`) so tall phones have no dead space under the board.
 - iOS haptics: `fx.js` `buzz()` clicks a hidden `<input type="checkbox" switch>` (Safari 17.4+) when `vibrate` is missing and the UA is iOS. UNTESTED on a real iPhone; the Simulator cannot produce haptics.
 - Contrast script (scratchpad, not in repo) was rewritten for the single `:root` block; all text pairs >= 4.5, graphics >= 3.
-- Claude Artifact copy exists (private; Share in claude.ai to make public). It is a static snapshot, republish after changes.
+- Claude Artifact copy is a static snapshot (anyone with the link). Republish it after UI changes.
 - Tested: Chrome pane 375, level pick/replay/leave with real wallet state, no console errors, lint, 21 tests. Not tested: Firefox, Safari beyond the earlier Simulator pass, real haptics/audio, text at 145%, axe re-run, widths other than 375 after this change.
+
+## Public repo and Pages (2026-11-24)
+- Repo `maurya-sachin/treasure-grid` is public. Pages needs a public repo on the free plan (422 on private). Source is `main` at `/`.
+- Live: https://maurya-sachin.github.io/treasure-grid/. Checked in Chrome: modules load, jsDelivr confetti loads, a round starts, no console errors.
+- README holds rules, math, run and test steps. No personal email in any public file.
+- Copy was scanned for AI tells (dashes, closers, triads); UI strings, spec and plan were already plain, so only the README was new.
