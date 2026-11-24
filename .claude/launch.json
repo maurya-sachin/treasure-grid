@@ -1,0 +1,6 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    { "name": "treasure-grid", "runtimeExecutable": "python3", "runtimeArgs": ["dev-server.py"], "port": 8080 }
+  ]
+}
